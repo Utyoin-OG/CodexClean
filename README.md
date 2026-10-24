@@ -1,8 +1,10 @@
 # CodexClean
 
-CodexClean is an independent Windows command-line tool for reviewing local Codex workspace folders left after chats are archived or deleted. It scans session metadata, protects folders referenced by active chats, and moves selected folders into a review directory. It never permanently deletes files.
-
 [简体中文说明](README.zh-CN.md)
+
+Archiving or deleting a Codex chat does not always remove its local workspace folders, generated files, or build artifacts. Over time, these leftovers can consume disk space, while the connection between a chat and its files becomes difficult to trace by hand. CodexClean helps you identify and review likely leftovers before moving them to a folder you choose.
+
+CodexClean is an independent Windows command-line tool. It reads local session metadata, protects folders used by active chats, and records selected moves in a manifest so they can be restored. It never permanently deletes files.
 
 ## What it identifies
 
@@ -64,30 +66,3 @@ py -3 .\codex_residue_review.py --quarantine "C:\Codex_Review" move --all
 ```
 
 Each move creates a timestamped run folder in the review directory. `items/` preserves the original date/folder layout, and `manifest.json` records the source, destination, classification, and move state. Open the run folder to inspect its contents. Delete unwanted files manually after review.
-
-To restore a run, use the exact run folder path printed by the move command. The first command previews; the second performs the restore. Existing folders at the original paths are never overwritten.
-
-```powershell
-py -3 .\codex_residue_review.py restore --run "C:\path\to\Codex_Review\RUN_ID" --all
-py -3 .\codex_residue_review.py restore --run "C:\path\to\Codex_Review\RUN_ID" --all --yes
-```
-
-## Safety and limitations
-
-- Scan reads directory names and Codex session metadata. It does not read chat body text or the contents of workspace files.
-- Move checks session state again immediately before touching a folder.
-- Active folders, symlinked or junction roots, and paths outside the configured workspace root are rejected.
-- Moves are restricted to the same drive and are recorded in an on-disk manifest. Interrupted runs may need manual inspection of `manifest.json` and `items/` before continuing.
-- This tool cannot delete cloud-side chats or infer the creator of every local file.
-
-## Tests
-
-```powershell
-py -3 -m unittest discover -s .\tests -v
-```
-
-## License
-
-MIT. See [LICENSE](LICENSE).
-
-CodexClean is an independent community project and is not affiliated with or endorsed by OpenAI.
