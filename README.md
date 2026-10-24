@@ -67,6 +67,15 @@ py -3 .\codex_residue_review.py --quarantine "C:\Codex_Review" move --all
 
 Each move creates a timestamped run folder in the review directory. `items/` preserves the original date/folder layout, and `manifest.json` records the source, destination, classification, and move state. Open the run folder to inspect its contents. Delete unwanted files manually after review.
 
+After a move, CodexClean removes the original date folder if it is empty. To preview and remove empty date folders left by earlier runs:
+
+```powershell
+py -3 .\codex_residue_review.py prune-empty-days
+py -3 .\codex_residue_review.py prune-empty-days --yes
+```
+
+Only empty date folders directly under the workspace root are removed. Restoring a moved directory recreates its date folder if needed.
+
 To restore a run, use the exact run folder path printed by the move command. The first command previews; the second performs the restore. Existing folders at the original paths are never overwritten.
 
 ```powershell

@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from contextlib import closing
 from datetime import datetime, timezone
+import errno
 import json
 import os
 from pathlib import Path
@@ -162,6 +163,38 @@ def write_manifest(path: Path, manifest: dict) -> None:
     temporary.replace(path)
 
 
+def remove_empty_date_dir(day: Path, root: Path) -> bool:
+    """Remove only a direct, empty date directory under the workspace root."""
+    if (not DATE_RE.fullmatch(day.name) or not day.is_dir() or is_link(day)
+            or day.parent.resolve(strict=True) != root.resolve(strict=True)):
+        return False
+    try:
+        day.rmdir()
+    except OSError as error:
+        if error.errno in (errno.ENOTEMPTY, errno.EEXIST, errno.ENOENT):
+            return False
+        raise
+    return True
+
+
+def prune_empty_days(root: Path, yes: bool) -> int:
+    days = [day for day in sorted(root.iterdir())
+            if DATE_RE.fullmatch(day.name) and day.is_dir() and not is_link(day)
+            and not any(day.iterdir())]
+    if not days:
+        print("No empty date directories.")
+        return 0
+    for day in days:
+        print(f"Empty date directory: {day}")
+    if not yes:
+        print("Preview only. Add --yes to remove these empty directories.")
+        return 0
+    for day in days:
+        if remove_empty_date_dir(day, root):
+            print(f"Removed empty date directory: {day}")
+    return 0
+
+
 def move_candidates(args: argparse.Namespace, entries: list[dict]) -> int:
     selected = [item for item in entries if item["state"] == "archived"]
     if args.include_unlinked:
@@ -222,6 +255,11 @@ def move_candidates(args: argparse.Namespace, entries: list[dict]) -> int:
         item["state"] = "moved"
         write_manifest(manifest_path, manifest)
         print(f"Moved: {item['id']}")
+        try:
+            if remove_empty_date_dir(source.parent, root):
+                print(f"Removed empty date directory: {source.parent}")
+        except OSError as error:
+            print(f"Could not remove empty date directory {source.parent}: {error}", file=sys.stderr)
     print(f"Review folder: {run}")
     print(f"Manifest: {manifest_path}")
     return 0
@@ -251,8 +289,10 @@ def restore(args: argparse.Namespace) -> int:
         destination = Path(item["destination"])
         if not within(source, root) or not within(destination, run / "items"):
             raise RuntimeError("Manifest contains an unsafe path")
-        if (not within(source.parent.resolve(strict=True), root)
+        if (not DATE_RE.fullmatch(source.parent.name)
+                or source.parent.parent.resolve(strict=True) != root
                 or is_link(source.parent)
+                or (source.parent.exists() and not source.parent.is_dir())
                 or not destination.is_dir()
                 or is_link(destination)
                 or not within(destination.resolve(strict=True), run / "items")
@@ -292,6 +332,8 @@ def make_parser() -> argparse.ArgumentParser:
     move.add_argument("--include-unlinked", action="store_true",
                       help="Include unlinked directories; these cannot be proven to belong to deleted chats")
     move.add_argument("--yes", action="store_true")
+    prune = commands.add_parser("prune-empty-days", help="Preview or remove empty date directories")
+    prune.add_argument("--yes", action="store_true")
     recovery = commands.add_parser("restore", help="Preview or restore moved directories")
     recovery.add_argument("--run", type=Path, required=True)
     recovery.add_argument("--ids", nargs="+")
@@ -309,6 +351,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "restore":
             return restore(args)
         validate_roots(args.workspace_root, args.codex_home, args.quarantine)
+        if args.command == "prune-empty-days":
+            return prune_empty_days(args.workspace_root.resolve(strict=True), args.yes)
         entries = scan(args.workspace_root, load_sessions(args.codex_home))
         if args.command == "scan":
             if args.json:

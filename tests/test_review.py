@@ -75,6 +75,37 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual((self.archived / "outputs" / "keep.txt").read_text(), "archived")
         self.assertEqual((self.unlinked / "outputs" / "keep.txt").read_text(), "unlinked")
 
+    def test_move_removes_empty_date_parent_and_restore_recreates_it(self):
+        isolated = self.make_workspace("2026-01-03", "archived")
+        con = sqlite3.connect(self.home / "state_5.sqlite")
+        try:
+            con.execute("INSERT INTO threads VALUES (?, ?, ?)", ("c", str(isolated), 1))
+            con.commit()
+        finally:
+            con.close()
+        status, output = self.run_main("move", "--ids", "2026-01-03/archived", "--yes")
+        self.assertEqual(status, 0, output)
+        self.assertFalse(isolated.parent.exists())
+        run = next(self.quarantine.iterdir())
+        status, output = self.run_main("restore", "--run", str(run), "--all", "--yes")
+        self.assertEqual(status, 0, output)
+        self.assertEqual((isolated / "outputs" / "keep.txt").read_text(), "archived")
+
+    def test_prune_empty_days_previews_then_removes_only_empty_date_folders(self):
+        empty = self.root / "2026-01-04"
+        empty.mkdir()
+        other = self.root / "notes"
+        other.mkdir()
+        status, output = self.run_main("prune-empty-days")
+        self.assertEqual(status, 0, output)
+        self.assertTrue(empty.exists())
+        self.assertIn("Preview only", output)
+        status, output = self.run_main("prune-empty-days", "--yes")
+        self.assertEqual(status, 0, output)
+        self.assertFalse(empty.exists())
+        self.assertTrue(other.exists())
+        self.assertTrue(self.archived.parent.exists())
+
     def test_active_log_protects_even_if_database_says_archived(self):
         session_dir = self.home / "sessions"
         session_dir.mkdir()

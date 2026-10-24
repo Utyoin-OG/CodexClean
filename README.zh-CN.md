@@ -69,6 +69,15 @@ py -3 .\codex_residue_review.py --quarantine "C:\Review_Codex" move --all --yes
 
 每次转移创建一个时间戳文件夹，其中 `items\` 保留原来的日期和目录名，`manifest.json` 记录每个目录的原路径、目标路径和转移状态。请打开该文件夹逐项检查；**检查完成后，由你在文件管理器中删除不需要的内容**。
 
+转移后，如果原来的日期文件夹已经空了，CodexClean 会将其移除。对于旧版本留下的空日期文件夹，可以先预览，再执行清理：
+
+```powershell
+py -3 .\codex_residue_review.py prune-empty-days
+py -3 .\codex_residue_review.py prune-empty-days --yes
+```
+
+此命令只移除工作根目录下完全为空的日期文件夹。恢复已转移的目录时，会按需重新创建日期文件夹。
+
 转移前或转移后想恢复时，用运行文件夹的完整路径：
 
 ```powershell
