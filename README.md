@@ -66,3 +66,30 @@ py -3 .\codex_residue_review.py --quarantine "C:\Codex_Review" move --all
 ```
 
 Each move creates a timestamped run folder in the review directory. `items/` preserves the original date/folder layout, and `manifest.json` records the source, destination, classification, and move state. Open the run folder to inspect its contents. Delete unwanted files manually after review.
+
+To restore a run, use the exact run folder path printed by the move command. The first command previews; the second performs the restore. Existing folders at the original paths are never overwritten.
+
+```powershell
+py -3 .\codex_residue_review.py restore --run "C:\path\to\Codex_Review\RUN_ID" --all
+py -3 .\codex_residue_review.py restore --run "C:\path\to\Codex_Review\RUN_ID" --all --yes
+```
+
+## Safety and limitations
+
+- Scan reads directory names and Codex session metadata. It does not read chat body text or the contents of workspace files.
+- Move checks session state again immediately before touching a folder.
+- Active folders, symlinked or junction roots, and paths outside the configured workspace root are rejected.
+- Moves are restricted to the same drive and are recorded in an on-disk manifest. Interrupted runs may need manual inspection of `manifest.json` and `items/` before continuing.
+- This tool cannot delete cloud-side chats or infer the creator of every local file.
+
+## Tests
+
+```powershell
+py -3 -m unittest discover -s .\tests -v
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
+
+CodexClean is an independent community project and is not affiliated with or endorsed by OpenAI.
